@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Files</title>
+<link rel="stylesheet" href="shared/theme.css"><script src="shared/prefs.js"></script>
+<style>
+body{display:flex;flex-direction:column;height:100vh}
+header,footer{display:flex;gap:8px;padding:12px}header{border-bottom:1px solid var(--line)}footer{border-top:1px solid var(--line)}
+header input,footer input{flex:1}main{flex:1;overflow:auto;padding:8px}
+.row{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:8px;cursor:pointer}.row:hover{background:var(--card)}.row.on{background:var(--card);outline:1px solid var(--acc)}
+.th{width:36px;height:36px;display:grid;place-items:center;border-radius:6px;background:var(--card);overflow:hidden}.th img{width:100%;height:100%;object-fit:contain}
+.row b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.row i{color:var(--mut);font-style:normal;font-size:12px}
+.ac button{padding:2px 8px;border:0;background:none}.empty{text-align:center;color:var(--mut);padding:40px}
+</style></head><body>
+<header><input id="q" placeholder="Search files"><select id="app"></select><label class="btn">Upload<input id="up" type="file" multiple hidden></label></header>
+<main id="list"></main>
+<footer id="bar" hidden><input id="nm" placeholder="File name"><button id="ok" class="pri"></button><button id="no">Cancel</button></footer>
+<script type="module">
+const P=new URLSearchParams(location.search),mode=P.get('mode')||'manage',rid=P.get('rid'),app=P.get('app')||'Files',acc=(P.get('accept')||'').split(',').filter(Boolean);
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
+const db=await new Promise((ok,no)=>{const r=indexedDB.open('nexus',1);r.onupgradeneeded=()=>r.result.createObjectStore('files',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
+const tx=(m,f)=>new Promise((ok,no)=>{const t=db.transaction('files',m),q=f(t.objectStore('files'));t.oncomplete=()=>ok(q.result);t.onerror=()=>no(t.error)});
+const all=()=>tx('readonly',s=>s.getAll()),put=f=>tx('readwrite',s=>s.put(f)),del=id=>tx('readwrite',s=>s.delete(id));
+const rec=(b,name,a)=>({id:Date.now().toString(36)+Math.random().toString(36).slice(2),name,app:a,mime:b.type||'application/octet-stream',size:b.size,mod:Date.now(),blob:b});
+const send=m=>parent.postMessage({rid,...m},location.origin);
+const U={},url=f=>U[f.id+f.mod]||(U[f.id+f.mod]=URL.createObjectURL(f.blob));
+const sz=n=>n>1e6?(n/1e6).toFixed(1)+' MB':Math.ceil(n/1e3)+' KB';
+const fits=f=>!acc.length||acc.some(a=>a[0]=='.'?f.name.toLowerCase().endsWith(a):f.mime.startsWith(a));
+let files=[],sel=null,payload=null;
+async function load(){const keep=$('#app').value;files=(await all()).sort((a,b)=>b.mod-a.mod);
+ $('#app').innerHTML='<option value="">All apps</option>'+[...new Set(files.map(f=>f.app))].map(a=>`<option>${esc(a)}</option>`).join('');$('#app').value=keep;render()}
+function render(){const q=$('#q').value.toLowerCase(),a=$('#app').value,v=files.filter(f=>fits(f)&&(!a||f.app==a)&&f.name.toLowerCase().includes(q));
+ $('#list').innerHTML=v.length?v.map(f=>`<div class="row${sel==f.id?' on':''}" data-id="${f.id}"><span class="th">${f.mime.startsWith('image/')?`<img alt="" src="${url(f)}">`:'&#128196;'}</span><b>${esc(f.name)}</b><i>${esc(f.app)} · ${sz(f.size)} · ${new Date(f.mod).toLocaleDateString()}</i><span class="ac"><button data-a="dl" title="Download">&#11015;</button><button data-a="rn" title="Rename">&#9998;</button><button data-a="rm" title="Delete">&#128465;</button></span></div>`).join(''):'<p class="empty">No files here yet. Save something from an app, or upload a file.</p>'}
+$('#list').onclick=async e=>{const r=e.target.closest('.row');if(!r)return;const f=files.find(x=>x.id==r.dataset.id),a=e.target.dataset.a;
+ if(a=='dl'){const l=document.createElement('a');l.href=url(f);l.download=f.name;l.click()}
+ else if(a=='rn'){const n=prompt('Rename file',f.name);if(n){f.name=n;f.mod=Date.now();await put(f);load()}}
+ else if(a=='rm'){if(confirm('Delete '+f.name+'?')){await del(f.id);load()}}
+ else{sel=f.id;if(mode=='save')$('#nm').value=f.name;render()}};
+$('#list').ondblclick=e=>{const r=e.target.closest('.row');if(r&&mode=='manage')open(url(files.find(x=>x.id==r.dataset.id)))};
+$('#q').oninput=$('#app').onchange=render;
+$('#up').onchange=async e=>{for(const b of e.target.files)await put(rec(b,b.name,'Upload'));e.target.value='';load()};
+if(mode!='manage'){$('#bar').hidden=false;$('#ok').textContent=mode=='save'?'Save here':'Open';$('#nm').hidden=mode!='save';$('#nm').value=P.get('name')||'';
+ $('#no').onclick=()=>send({type:'cancel'});
+ addEventListener('message',e=>{if(e.origin==location.origin&&e.data&&e.data.type=='payload'&&e.data.rid==rid)payload=e.data});
+ $('#ok').onclick=async()=>{
+  if(mode=='save'){const n=$('#nm').value.trim();if(!n||!payload)return;const ex=files.find(f=>f.name==n&&f.app==app);
+   if(ex&&!confirm('Replace '+n+'?'))return;const r=rec(payload.blob,n,app);if(ex)r.id=ex.id;await put(r);send({type:'saved',file:{id:r.id,name:n}})}
+  else{const f=files.find(x=>x.id==sel);if(f)send({type:'opened',file:{id:f.id,name:f.name,mime:f.mime},blob:f.blob})}}}
+await load();send({type:'ready'});
+</script></body></html>

@@ -1,0 +1,8 @@
+.dock{display:grid;flex:1;min-width:0;min-height:0;grid-template-areas:"top top top" "left c right" "bottom bottom bottom";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr) auto}
+.dz{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--card);border:1px solid var(--line)}
+.dz-left.full,.dz-right.full{width:270px;resize:horizontal;overflow:auto}
+.dz-bottom.full{height:170px;resize:vertical;overflow:auto}.dz-top.full{max-height:45vh}
+.dz.drop{outline:2px dashed var(--acc);outline-offset:-3px;min-width:70px;min-height:46px}
+.dtabs{display:flex;gap:2px;padding:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.dtabs button{padding:3px 10px;border:0;background:none;border-radius:6px;color:var(--mut)}.dtabs button.on{background:var(--bg);color:var(--fg)}
+.dbody{flex:1;overflow:auto;padding:10px;min-height:0}.dc{min-width:0;min-height:0;overflow:auto;display:flex}

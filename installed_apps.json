@@ -1,0 +1,22 @@
+{
+ "apps": [
+  {
+   "id": "icon-bench",
+   "name": "Icon Bench",
+   "description": "Design app icons and export PNG, SVG and ICO.",
+   "path": "apps/icon-bench/",
+   "icon": "icon.svg",
+   "entry": "index.html",
+   "route": "#/"
+  },
+  {
+   "id": "tessel",
+   "name": "Tessel",
+   "description": "Pixel art and frame animation with onion skin and reusable snippets.",
+   "path": "apps/tessel/",
+   "icon": "icon.svg",
+   "entry": "index.html",
+   "route": "#/"
+  }
+ ]
+}
